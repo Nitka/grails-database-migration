@@ -26,10 +26,13 @@ import liquibase.parser.core.xml.AbstractChangeLogParser
 import liquibase.resource.ResourceAccessor
 import liquibase.util.StreamUtil
 import org.codehaus.groovy.control.CompilerConfiguration
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationContext
 
 @CompileStatic
 class GroovyChangeLogParser extends AbstractChangeLogParser {
+    private static final Logger log = LoggerFactory.getLogger(this);
 
     final int priority = PRIORITY_DEFAULT
 
@@ -71,6 +74,7 @@ class GroovyChangeLogParser extends AbstractChangeLogParser {
             builder.applicationContext = applicationContext
             builder.databaseChangeLog(databaseChangeLogBlock) as ParsedNode
         } catch (Exception e) {
+            log.error("Cannot process script '${physicalChangeLogLocation}'", e)
             throw new ChangeLogParseException(e)
         }
     }

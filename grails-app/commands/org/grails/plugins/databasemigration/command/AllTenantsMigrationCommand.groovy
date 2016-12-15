@@ -21,11 +21,14 @@ import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import liquibase.Liquibase
 import liquibase.database.Database
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.nio.file.Path
 
 @CompileStatic
 trait AllTenantsMigrationCommand implements ApplicationCommand, ApplicationContextDatabaseMigrationCommand {
+    private static final Logger log = LoggerFactory.getLogger(this);
 
     void withLiquibaseForAllTenants(@ClosureParams(value = SimpleType, options = 'liquibase.Liquibase') Closure closure) {
         def resourceAccessor = createResourceAccessor()
@@ -40,9 +43,51 @@ trait AllTenantsMigrationCommand implements ApplicationCommand, ApplicationConte
 
     void withDatabases(@ClosureParams(value = SimpleType, options = 'liquibase.database.Database') Closure closure) {
         Map<String, Map> dataSources = config.getProperty('dataSources', Map) ?: [:]
-        List<String> dsKeys = dataSources.keySet().sort() //todo add better sorting
-        dsKeys.each {
-            withDatabase(dataSources[it], closure)
+        List<String> dsKeys = dataSources.keySet().sort()
+        int total = dsKeys.size()
+
+        def field = config.getProperty("${configPrefix}.filterField", String)
+        if (hasOption('include')) {
+            List<String> include = optionValue('include').split(",").toList()
+            log.debug("Include only the following tenants: ${include.join(", ")}")
+            if (field) {
+                log.debug("Include tenants by $field")
+                dsKeys.removeAll {
+                    String fieldValue = dataSources[it][field]
+                    fieldValue && !(fieldValue in include)
+                }
+            } else {
+                dsKeys.removeAll { !(it in include) }
+            }
+        } else if (hasOption('exclude')) {
+            List<String> exclude = optionValue('exclude').split(",").toList()
+            log.debug("Exclude the following tenants: ${exclude.join(", ")}")
+            if (field) {
+                log.debug("Exclude tenants by $field")
+                dsKeys.removeAll {
+                    String fieldValue = dataSources[it][field]
+                    fieldValue && (fieldValue in exclude)
+                }
+            } else {
+                dsKeys.removeAll { it in exclude }
+            }
+        }
+
+        List<String> firstDataSources = config.getProperty("${configPrefix}.firstDataSources", List)
+        if (firstDataSources) {
+            log.debug("First dataSources to run against: ${firstDataSources.join(", ")}")
+            firstDataSources.eachWithIndex { String name, int index ->
+                if (dsKeys.remove(name)) {
+                    dsKeys.add(index, name)
+                }
+            }
+        }
+
+        dsKeys.eachWithIndex { String key, int index ->
+            String fieldValue = field ? dataSources[key][field] : ""
+            log.debug("Start executing command for tenant #$key $fieldValue (${index + 1}/$total)")
+            withDatabase(dataSources[key], closure)
+            log.debug("Finish executing command for tenant #$key $fieldValue (${index + 1}/$total)" as String)
         }
     }
 

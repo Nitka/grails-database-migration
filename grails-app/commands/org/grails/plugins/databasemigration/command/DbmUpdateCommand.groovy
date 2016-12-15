@@ -18,9 +18,12 @@ package org.grails.plugins.databasemigration.command
 import grails.dev.commands.ApplicationCommand
 import groovy.transform.CompileStatic
 import liquibase.Liquibase
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 @CompileStatic
 class DbmUpdateCommand implements ApplicationCommand, ApplicationContextDatabaseMigrationCommand {
+    private static final Logger log = LoggerFactory.getLogger(this);
 
     final String description = 'Updates a database to the current version'
 
@@ -28,7 +31,9 @@ class DbmUpdateCommand implements ApplicationCommand, ApplicationContextDatabase
     void handle() {
         withLiquibase { Liquibase liquibase ->
             withTransaction {
+                log.debug("Start update command (context: $contexts)...")
                 liquibase.update(contexts)
+                log.debug("Finish update command...")
             }
         }
     }
