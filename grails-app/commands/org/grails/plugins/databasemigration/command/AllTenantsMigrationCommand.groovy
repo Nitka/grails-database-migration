@@ -44,7 +44,6 @@ trait AllTenantsMigrationCommand implements ApplicationCommand, ApplicationConte
     void withDatabases(@ClosureParams(value = SimpleType, options = 'liquibase.database.Database') Closure closure) {
         Map<String, Map> dataSources = config.getProperty('dataSources', Map) ?: [:]
         List<String> dsKeys = dataSources.keySet().sort()
-        int total = dsKeys.size()
 
         def field = config.getProperty("${configPrefix}.filterField", String)
         if (hasOption('include')) {
@@ -54,7 +53,7 @@ trait AllTenantsMigrationCommand implements ApplicationCommand, ApplicationConte
                 log.debug("Include tenants by $field")
                 dsKeys.removeAll {
                     String fieldValue = dataSources[it][field]
-                    fieldValue && !(fieldValue in include)
+                    !fieldValue || !(fieldValue in include)
                 }
             } else {
                 dsKeys.removeAll { !(it in include) }
@@ -83,8 +82,9 @@ trait AllTenantsMigrationCommand implements ApplicationCommand, ApplicationConte
             }
         }
 
+        int total = dsKeys.size()
         dsKeys.eachWithIndex { String key, int index ->
-            String fieldValue = field ? dataSources[key][field] : ""
+            String fieldValue = field ? (dataSources[key][field] ?: "") : ""
             log.debug("Start executing command for tenant #$key $fieldValue (${index + 1}/$total)")
             withDatabase(dataSources[key], closure)
             log.debug("Finish executing command for tenant #$key $fieldValue (${index + 1}/$total)" as String)

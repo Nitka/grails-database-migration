@@ -36,6 +36,7 @@ import org.grails.build.parsing.CommandLine
 import org.grails.plugins.databasemigration.DatabaseMigrationException
 import org.grails.plugins.databasemigration.liquibase.GroovyDiffToChangeLogCommand
 import org.grails.plugins.databasemigration.liquibase.GroovyGenerateChangeLogCommand
+import org.grails.plugins.databasemigration.liquibase.RootPathsAwareResourceAccessor
 
 import java.nio.file.Path
 import java.text.ParseException
@@ -151,7 +152,7 @@ trait DatabaseMigrationCommand {
     }
 
     ResourceAccessor createResourceAccessor() {
-        new FileSystemResourceAccessor(changeLogLocation.path)
+        new RootPathsAwareResourceAccessor(changeLogLocation.path)
     }
 
     void withDatabase(Map<String, String> dataSourceConfig = null, @ClosureParams(value = SimpleType, options = 'liquibase.database.Database') Closure closure) {
